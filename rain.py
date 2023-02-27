@@ -85,11 +85,14 @@ def download_url_to_file(url, source, dest):
 
     os.makedirs(dir_path, exist_ok=True)
 
-    try:
-        with open(dest_path, 'wb') as f:
-            f.write(content)
-    except Exception as e:
-        print(f'Error writing file {dest_path}: {e}')
+    if os.path.exists(dest_path):
+        print(f'{dest_path} already exists, skipping...')
+    else:
+        try:
+            with open(dest_path, 'wb') as f:
+                f.write(content)
+        except Exception as e:
+            print(f'Error writing file {dest_path}: {e}')
 
 def download_url(url, binary=False):
     with urllib.request.urlopen(url) as response:
