@@ -46,7 +46,7 @@ def download_website(source, dest):
 
     downloaded_files = {}
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
         futures = []
         for url in urls:
             if source not in url:
@@ -109,7 +109,22 @@ def download_url_to_file_v2(url, source, dest, downloaded_files):
 
     return url, dest_path
 
+import importlib
+
 def download_url(url, binary=False):
+    http_lib = None
+    try:
+        http_lib = importlib.import_module('httpx')
+    except ImportError:
+        pass
+
+    if http_lib:
+        with http_lib.stream("GET", url) as response:
+            if binary:
+                return response.read()
+            else:
+                return response.text
+
     with urllib.request.urlopen(url) as response:
         if binary:
             return response.read()
