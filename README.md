@@ -1,10 +1,8 @@
 # Rain
-Rain is a Python script that downloads a website from a given URL and saves it to a specified destination directory. The script starts by downloading the HTML content of the website and then parses it to extract all the links in the page. It then downloads all the linked pages recursively and updates the links in the downloaded pages to point to the local copies.
+Rain is a Python script that can be used to download a website and save it to the local disk. The script takes two command-line arguments: the first argument specifies the destination folder where the website should be saved, and the second argument is the URL of the website to be downloaded.
 
-To extract links from the HTML content, the script uses a LinkParser class that inherits from the HTMLParser class. The LinkParser class extracts links from a, link, script, img, video, and audio tags, and adds them to a list of links.
+Rain works by first downloading the HTML content of the website from the specified URL using the urllib library. The script then parses the HTML using an HTML parser called LinkParser that extracts all the links to other resources such as images, scripts, and stylesheets. The script then creates a ThreadPoolExecutor that downloads all these resources concurrently to speed up the download process.
 
-To download linked pages, the script uses a ThreadPoolExecutor object to submit a task for each link to download the linked page to a local file. It skips any links that do not belong to the same website as the source URL. After all the tasks are submitted, the script waits for all the tasks to complete and then saves the downloaded HTML content to a file named index.html. It also updates the links in the downloaded HTML content to point to the local copies.
+The script also checks if a file with the same name already exists in the local directory before downloading and overwriting it. If a file with the same name exists, and the contents of the existing file and the downloaded file are identical, then the script skips the download to save bandwidth. If the contents are different, the script renames the existing file with a ".bak" extension before downloading the new file.
 
-The script also includes a `download_url_to_file` function that downloads the content of a URL to a file. This function checks if the destination file already exists and only downloads the content if it doesn't already exist.
-
-Rain takes two command-line arguments: the destination directory and the URL of the website to download. The script is useful for creating local copies of websites for offline use, backup, or archiving purposes.
+Finally, the script updates the links in the downloaded HTML file to point to the local copies of the downloaded resources, and saves the updated HTML file to the local disk.
