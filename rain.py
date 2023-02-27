@@ -109,22 +109,7 @@ def download_url_to_file_v2(url, source, dest, downloaded_files):
 
     return url, dest_path
 
-import importlib
-
 def download_url(url, binary=False):
-    http_lib = None
-    try:
-        http_lib = importlib.import_module('httpx')
-    except ImportError:
-        pass
-
-    if http_lib:
-        with http_lib.stream("GET", url) as response:
-            if binary:
-                return response.read()
-            else:
-                return response.text
-
     with urllib.request.urlopen(url) as response:
         if binary:
             return response.read()
