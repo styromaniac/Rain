@@ -44,18 +44,22 @@ def download_website(source, dest):
     parser.feed(html)
     urls = parser.links
 
+    downloaded_files = {}
+
     with ThreadPoolExecutor() as executor:
         futures = []
         for url in urls:
             if source not in url:
                 continue
 
-            future = executor.submit(download_url_to_file, url, source, dest)
+            future = executor.submit(download_url_to_file_v2, url, source, dest, downloaded_files)
             futures.append(future)
 
         for future in futures:
             try:
-                future.result()
+                result = future.result()
+                if result:
+                    downloaded_files[result[0]] = result[1]
             except Exception as e:
                 print(f'Error downloading {future}: {e}')
 
@@ -68,7 +72,7 @@ def download_website(source, dest):
     index_links = [url.replace(source, '') for url in urls if source in url]
     update_links_in_file(dest_path, index_links)
 
-def download_url_to_file(url, source, dest):
+def download_url_to_file_v2(url, source, dest, downloaded_files):
     try:
         content = download_url(url, binary=True)
     except Exception as e:
@@ -86,13 +90,24 @@ def download_url_to_file(url, source, dest):
     os.makedirs(dir_path, exist_ok=True)
 
     if os.path.exists(dest_path):
-        print(f'{dest_path} already exists, skipping...')
-    else:
-        try:
-            with open(dest_path, 'wb') as f:
-                f.write(content)
-        except Exception as e:
-            print(f'Error writing file {dest_path}: {e}')
+        with open(dest_path, 'rb') as f:
+            existing_content = f.read()
+        if existing_content == content:
+            print(f'{dest_path} already exists and has identical content, skipping...')
+            return url, dest_path
+
+        print(f'{dest_path} already exists, renaming...')
+        os.rename(dest_path, dest_path + '.bak')
+        return url, dest_path
+
+    try:
+        with open(dest_path, 'wb') as f:
+            f.write(content)
+    except Exception as e:
+        print(f'Error writing file {dest_path}: {e}')
+        return
+
+    return url, dest_path
 
 def download_url(url, binary=False):
     with urllib.request.urlopen(url) as response:
