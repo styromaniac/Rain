@@ -3,9 +3,9 @@ Rain.py is a Python script that can be used to download and archive a website. I
 
 The script first downloads a file called sourcechecksums.txt from the source URL, which contains a list of checksums for all the files on the website. It then compares these checksums to the files in the destination directory and downloads any files that are missing or have been updated.
 
-The script then downloads the HTML of the website and parses it for links to other files on the site, such as images, scripts, and stylesheets. It uses a LinkParser class to extract these links and then uses a ThreadPoolExecutor to download each file in parallel.
+The script then downloads the HTML of the website and parses it for links to other files on the site, such as images, scripts, and stylesheets. It uses a LinkParser class to extract these links and then uses a ThreadPoolExecutor to download each file in parallel. External dependencies such as those loaded from CDNs are not downloaded to local copies. The choice to include these files directly from their website's origin is left up to the website's developer, aside from the fact that saving external dependencies could cause less than convenient folder and file organization and website mirror breakage at worst.
 
-Finally, the script saves the downloaded HTML as index.html and updates all the relative links in the file to point to the local copies of the files. External dependencies such as those loaded from CDNs are not downloaded to local copies.
+Finally, the script saves the downloaded HTML as index.html and updates all the relative links in the file to point to the local copies of the files.
 
 The script uses the following Python modules:
 
