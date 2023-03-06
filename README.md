@@ -5,7 +5,7 @@ The script first downloads a file called sourcechecksums.txt from the source URL
 
 The script then downloads the HTML of the website and parses it for links to other files on the site, such as images, scripts, and stylesheets. It uses a LinkParser class to extract these links and then uses a ThreadPoolExecutor to download each file in parallel.
 
-Finally, the script saves the downloaded HTML as index.html and updates all the links in the file to point to the local copies of the files.
+Finally, the script saves the downloaded HTML as index.html and updates all the relative links in the file to point to the local copies of the files. External dependencies such as those loaded from CDNs are not downloaded to local copies.
 
 The script uses the following Python modules:
 
