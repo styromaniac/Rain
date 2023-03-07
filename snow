@@ -35,7 +35,7 @@ class LinkParser(HTMLParser):
             if attr[0].lower() == attr_name:
                 return attr[1]
 
-def download_website(source, dest):
+def download_website(source, dest, bank):
     # Download sourcechecksums.txt
     checksum_url = urllib.parse.urljoin(source, 'sourcechecksums.txt')
     try:
@@ -75,6 +75,8 @@ def download_website(source, dest):
                         downloaded_files[local_path] = sha256sum
                     else:
                         print(f'Downloading {file_path}...')
+                        if bank:
+                            backup_file(local_path)
                         download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
                         updated_files[local_path] = sha256sum
 
@@ -113,8 +115,13 @@ def download_website(source, dest):
                     continue
                 else:
                     print(f'Re-downloading {path}...')
+                    if bank:
+                        backup_file(dest_path)
             else:
                 print(f'Downloading {path}...')
+            
+            if bank:
+                backup_file(dest_path)
 
             future = executor.submit(download_url_to_file, url, source, dest, downloaded_files)
             futures.append(future)
@@ -152,6 +159,14 @@ def download_url_to_file(url, source, dest, downloaded_files):
 
     dir_path.mkdir(parents=True, exist_ok=True)
 
+    if dest_path in downloaded_files:
+        if downloaded_files[dest_path] == get_sha256sum(dest_path):
+            print(f'{path} already downloaded and verified.')
+            return
+        else:
+            print(f'Re-downloading {path}...')
+            backup_file(dest_path, Path(dest_path).read_bytes())
+
     try:
         with open(dest_path, 'wb') as f:
             f.write(content)
@@ -160,6 +175,20 @@ def download_url_to_file(url, source, dest, downloaded_files):
         return
 
     downloaded_files[dest_path] = get_sha256sum(dest_path)
+
+def backup_file(file_path, content=None):
+    path, ext = os.path.splitext(file_path)
+    i = 1
+    original_path = f'{path}{ext}.{i}.bak'
+    while os.path.exists(original_path):
+        i += 1
+        original_path = f'{path}{ext}.{i}.bak'
+    if content is None:
+        with open(file_path, 'rb') as f:
+            content = f.read()
+    with open(original_path, 'wb') as backup_file:
+        backup_file.write(content)
+    print(f'Backup created for {file_path} at {original_path}')
 
 def download_url(url, binary=False):
     with urllib.request.urlopen(url) as response:
@@ -188,8 +217,17 @@ def get_sha256sum(file_path):
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print('Usage: snow <dest> <source>')
+        print('Usage: snow [--bank] <dest> <source>')
         sys.exit(1)
 
-    dest, source = sys.argv[1], sys.argv[2]
-    download_website(source, dest)
+    bank = False
+    dest_index = 1
+    source_index = 2
+
+    if sys.argv[1] == '--bank':
+        bank = True
+        dest_index = 2
+        source_index = 3
+
+    dest, source = sys.argv[dest_index], sys.argv[source_index]
+    download_website(source, dest, bank)
