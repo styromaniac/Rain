@@ -63,7 +63,7 @@ def download_website(source, dest):
 
             if not local_path.exists():
                 print(f'Downloading {file_path}...')
-                download_url_to_file_v2(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
+                download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
                 updated_files[local_path] = sha256sum
             else:
                 with open(local_path, 'rb') as f:
@@ -75,7 +75,7 @@ def download_website(source, dest):
                         downloaded_files[local_path] = sha256sum
                     else:
                         print(f'Downloading {file_path}...')
-                        download_url_to_file_v2(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
+                        download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
                         updated_files[local_path] = sha256sum
 
     # Download website
@@ -116,7 +116,7 @@ def download_website(source, dest):
             else:
                 print(f'Downloading {path}...')
 
-            future = executor.submit(download_url_to_file_v2, url, source, dest, downloaded_files)
+            future = executor.submit(download_url_to_file, url, source, dest, downloaded_files)
             futures.append(future)
 
         for future in futures:
@@ -134,7 +134,7 @@ def download_website(source, dest):
     index_links = [url.replace(source, '') for url in urls if source in url]
     update_links_in_file(dest_path, index_links)
 
-def download_url_to_file_v2(url, source, dest, downloaded_files):
+def download_url_to_file(url, source, dest, downloaded_files):
     try:
         with urllib.request.urlopen(url) as response:
             content = response.read()
