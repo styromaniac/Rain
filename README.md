@@ -34,4 +34,4 @@ If you want older copies to save as backup copies, then use --bank.
 snow --bank <destination_folder> <source_URL>
 ```
 
-If you want another feature, please [https://github.com/styromaniac/Snow/issues/new](create an issue for it.)
+If you want another feature, please [create an issue for it.](https://github.com/styromaniac/Snow/issues/new)
