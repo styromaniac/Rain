@@ -1,6 +1,6 @@
 ![SNOWFLAKE](SNOWFLAKE.svg)
 
-# Snow
+# Snow (because every file is unique)
 Snow is a Python script that defines several functions to download and update a website from a given source URL to a local destination directory.
 
 The main function of the script, download_website, takes two arguments: the source URL of the website to download and the local destination directory where the website should be saved. It performs the following tasks:
