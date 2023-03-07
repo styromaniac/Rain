@@ -16,7 +16,7 @@ Overall, the script provides a simple and efficient way to synchronize a website
 
 Snow depends on a PHP script that provides the file path with the current SHA256sum for each file to download/update on a destination computing device in the text file known as sourcechecksums.txt.
 
-## Here are examples from sourcechecksums.txt:
+## Here are examples from a sourcechecksums.txt file:
 
 dep/Lightbox.js	63f78ec2b2450b7dad3b25cc533db2c9df6078df3a339f221d0c0976d9db281f
 
