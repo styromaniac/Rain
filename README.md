@@ -1,3 +1,5 @@
+![SNOWFLAKE](SNOWFLAKE.svg)
+
 # Snow
 Snow is a Python script that defines several functions to download and update a website from a given source URL to a local destination directory.
 
