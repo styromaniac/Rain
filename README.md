@@ -16,6 +16,6 @@ Overall, the script provides a simple and efficient way to synchronize a website
 
 ## Here are examples from sourcechecksums.txt:
 
-dep/Lightbox.js	63f78ec2b2450b7dad3b25cc533db2c9df6078df3a339f221d0c0976d9db281f
-OpenCamera/example.mp4	df6b731b11f381fc90400b7c0e072a79fd96535c28ac10433659420e07626195
+dep/Lightbox.js	63f78ec2b2450b7dad3b25cc533db2c9df6078df3a339f221d0c0976d9db281f\n
+OpenCamera/example.mp4	df6b731b11f381fc90400b7c0e072a79fd96535c28ac10433659420e07626195\n
 OpenCamera/example.webp	9e9b62b53f4e24df8514203cc235fa86346d4605aedd21df6263b84569e7e9d3
