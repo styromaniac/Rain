@@ -9,6 +9,7 @@ from html.parser import HTMLParser
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from pathlib import Path
+import argparse
 
 class LinkParser(HTMLParser):
     def __init__(self, base_url):
@@ -216,18 +217,9 @@ def get_sha256sum(file_path):
         return hex_dig
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print('Usage: snow [--bank] <dest> <source>')
-        sys.exit(1)
-
-    bank = False
-    dest_index = 1
-    source_index = 2
-
-    if sys.argv[1] == '--bank':
-        bank = True
-        dest_index = 2
-        source_index = 3
-
-    dest, source = sys.argv[dest_index], sys.argv[source_index]
-    download_website(source, dest, bank)
+    parser = argparse.ArgumentParser(description='Download a website and its assets.')
+    parser.add_argument('dest', help='The destination directory for the downloaded website.')
+    parser.add_argument('source', help='The URL of the website to download.')
+    parser.add_argument('--bank', action='store_true', help='Create a backup of files before overwriting them.')
+    args = parser.parse_args()
+    download_website(args.source, args.dest, args.bank)
