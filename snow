@@ -37,22 +37,22 @@ class LinkParser(HTMLParser):
                 return attr[1]
 
 def download_website(source, dest, bank):
-    # Download sourcechecksums.txt
-    checksum_url = urllib.parse.urljoin(source, 'sourcechecksums.txt')
+    # Download snow.txt
+    checksum_url = urllib.parse.urljoin(source, 'snow.txt')
     try:
         with urllib.request.urlopen(checksum_url) as response:
             checksum_file = response.read()
-        with open(Path(dest) / 'sourcechecksums.txt', 'wb') as f:
+        with open(Path(dest) / 'snow.txt', 'wb') as f:
             f.write(checksum_file)
     except Exception as e:
         print(f'Error downloading {checksum_url}: {e}')
         return
 
-    # Check sha256sums of local copies against those in sourcechecksums.txt
+    # Check sha256sums of local copies against those in snow.txt
     updated_files = {}
     downloaded_files = {}
 
-    with open(Path(dest) / 'sourcechecksums.txt', 'r') as f:
+    with open(Path(dest) / 'snow.txt', 'r') as f:
         checksums = f.readlines()
 
         for checksum in checksums:
