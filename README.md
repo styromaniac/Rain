@@ -34,4 +34,11 @@ If you want older copies to save as backup copies, then use --bank.
 snow --bank <destination_folder> <source_URL>
 ```
 
+If you want files that were deleted from the site to be deleted locally, then use --melt
+```
+snow --melt <destination_folder> <source_URL>
+```
+
+--bank and -- melt can be used at the same time.
+
 If you want another feature, please [create an issue for it.](https://github.com/styromaniac/Snow/issues/new)
