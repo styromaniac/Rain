@@ -48,7 +48,7 @@ def download_website(source, dest, bank, melt):
         print(f'Error downloading {checksum_url}: {e}')
         return
 
-    # Check sha256sums of local copies against those in snow.txt
+    # Check sha3-512sums of local copies against those in snow.txt
     updated_files = {}
     downloaded_files = {}
 
@@ -59,27 +59,27 @@ def download_website(source, dest, bank, melt):
             if checksum.startswith('#') or len(checksum.strip()) == 0:
                 continue
 
-            file_path, sha256sum = checksum.split()
+            file_path, sha3_512sum = checksum.split()
             local_path = Path(dest) / file_path
 
             if not local_path.exists():
                 print(f'Downloading {file_path}...')
                 download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
-                updated_files[local_path] = sha256sum
+                updated_files[local_path] = sha3_512sum
             else:
                 with open(local_path, 'rb') as f:
                     content = f.read()
-                    hash_object = hashlib.sha256(content)
+                    hash_object = hashlib.sha3_512(content)
                     hex_dig = hash_object.hexdigest()
-                    if hex_dig == sha256sum:
+                    if hex_dig == sha3_512sum:
                         print(f'{file_path} already up-to-date.')
-                        downloaded_files[local_path] = sha256sum
+                        downloaded_files[local_path] = sha3_512sum
                     else:
                         print(f'Downloading {file_path}...')
                         if bank:
                             backup_file(local_path)
                         download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
-                        updated_files[local_path] = sha256sum
+                        updated_files[local_path] = sha3_512sum
 
     # Melt subfolders
     if melt:
@@ -120,12 +120,12 @@ def download_website(source, dest, bank, melt):
             dest_path = Path(dest) / path.lstrip('/')
 
             if dest_path in updated_files:
-                if updated_files[dest_path] == get_sha256sum(dest_path):
+                if updated_files[dest_path] == get_sha3_512sum(dest_path):
                     print(f'{path} already up-to-date.')
                     continue
 
             if dest_path in downloaded_files:
-                if downloaded_files[dest_path] == get_sha256sum(dest_path):
+                if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
                     print(f'{path} already downloaded and verified.')
                     continue
                 else:
@@ -175,7 +175,7 @@ def download_url_to_file(url, source, dest, downloaded_files):
     dir_path.mkdir(parents=True, exist_ok=True)
 
     if dest_path in downloaded_files:
-        if downloaded_files[dest_path] == get_sha256sum(dest_path):
+        if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
             print(f'{path} already downloaded and verified.')
             return
         else:
@@ -189,7 +189,7 @@ def download_url_to_file(url, source, dest, downloaded_files):
         print(f'Error writing file {dest_path}: {e}')
         return
 
-    downloaded_files[dest_path] = get_sha256sum(dest_path)
+    downloaded_files[dest_path] = get_sha3_512sum(dest_path)
 
 def backup_file(file_path, content=None):
     path, ext = os.path.splitext(file_path)
@@ -223,10 +223,10 @@ def update_links_in_file(file_path, links):
     with open(file_path, 'w') as f:
         f.write(content)
 
-def get_sha256sum(file_path):
+def get_sha3_512sum(file_path):
     with open(file_path, 'rb') as f:
         content = f.read()
-        hash_object = hashlib.sha256(content)
+        hash_object = hashlib.sha3_512(content)
         hex_dig = hash_object.hexdigest()
         return hex_dig
 
