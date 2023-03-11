@@ -14,7 +14,7 @@ The main function of the script, download_website, takes two arguments: the sour
 
 Overall, the script provides a simple and efficient way to synchronize a website between a source URL and a local destination directory. It ensures that all the files in the website are up-to-date and consistent with the checksums in snow.txt, and handles parallel downloads of multiple files to speed up the synchronization process.
 
-Snow depends on a PHP script that provides the file path with the current SHA256sum for each file to download/update on a destination computing device in the text file known as snow.txt.
+Snow depends on a PHP script that provides the file path with the current SHA3-512sum for each file to download/update on a destination computing device in the text file known as snow.txt. Any newer, more secure hashing algorithm can be very simply replaced by a drop-in solution as long as there aren't external dependencies.
 
 ## Here are examples from a snow.txt file:
 ```
