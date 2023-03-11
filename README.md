@@ -1,22 +1,22 @@
 ![SNOWFLAKE](https://user-images.githubusercontent.com/43807387/223344700-f0cb2109-52a1-48f7-9769-af673d11102d.svg)
 
-# Snow (because every file is unique)
-Snow is a Python script that defines several functions to download and update a website from a given source URL to a local destination directory.
+# Sn0 (because every file is unique)
+Sn0 is a Python script that defines several functions to download and update a website from a given source URL to a local destination directory.
 
 The main function of the script, download_website, takes two arguments: the source URL of the website to download and the local destination directory where the website should be saved. It performs the following tasks:
 
-1. It downloads a file called snow.txt from the source URL and saves it to the destination directory. This file contains SHA-256 checksums for all the files in the website, and is used to detect changes and updates to the website.
-2. It reads the contents of snow.txt and compares the checksums of the local files in the destination directory to those in the file. If a local file is missing or has a different checksum, the script downloads the updated file from the source URL and saves it to the destination directory.
+1. It downloads a file called sn0.txt from the source URL and saves it to the destination directory. This file contains SHA-256 checksums for all the files in the website, and is used to detect changes and updates to the website.
+2. It reads the contents of sn0.txt and compares the checksums of the local files in the destination directory to those in the file. If a local file is missing or has a different checksum, the script downloads the updated file from the source URL and saves it to the destination directory.
 3. It downloads the HTML content of the website from the source URL and saves it to the destination directory as index.html.
 4. It parses the HTML content of index.html to extract all the links to other files in the website (images, stylesheets, scripts, etc.) and saves them to a list.
 5. It uses a thread pool to download all the linked files that belong to the website and saves them to the destination directory. It skips files that are already up-to-date or have already been downloaded and verified.
 6. It updates the links in index.html to point to the local copies of the files in the destination directory.
 
-Overall, the script provides a simple and efficient way to synchronize a website between a source URL and a local destination directory. It ensures that all the files in the website are up-to-date and consistent with the checksums in snow.txt, and handles parallel downloads of multiple files to speed up the synchronization process.
+Overall, the script provides a simple and efficient way to synchronize a website between a source URL and a local destination directory. It ensures that all the files in the website are up-to-date and consistent with the checksums in sn0.txt, and handles parallel downloads of multiple files to speed up the synchronization process.
 
-Snow depends on a PHP script that provides the file path with the current SHA3-512sum for each file to download/update on a destination computing device in the text file known as snow.txt. Any newer, more secure hashing algorithm can be very simply replaced by a drop-in solution as long as there aren't external dependencies.
+Sn0 depends on a PHP script that provides the file path with the current SHA3-512sum for each file to download/update on a destination computing device in the text file known as sn0.txt. Any newer, more secure hashing algorithm can be very simply replaced by a drop-in solution as long as there aren't external dependencies.
 
-## Here are examples from a snow.txt file:
+## Here are examples from a sn0.txt file:
 ```
 dep/BlueBat.svg	eea5bdd8f6f639bb7fa6409b5091cce4e3c5311f90b5401e76df00dde513d3c1a8cfb051a288f419680a152af25c1b225cda40edc6c1b40518f6fa28c153546f
 dep/Copyright.js	a05f98b2277032057b50e986eacc00e16908358374c725549aec011626d9999ee7dcc16559c4a206b8fce8855cb0b1cb01629f4f61a5ab2db54ca03640682570
@@ -48,19 +48,19 @@ OpenCamera/example.webp	044185a9e6ceef9a751fa85efd445eb8b7353e786918650e6b7624c3
 
 ## Usage:
 ```
-snow <destination_folder> <source_URL>
+sn0 <destination_folder> <source_URL>
 ```
 
 If you want older copies to save as backup copies, then use --bank.
 ```
-snow --bank <destination_folder> <source_URL>
+sn0 --bank <destination_folder> <source_URL>
 ```
 
 If you want files that were deleted from the site to be deleted locally, then use --melt
 ```
-snow --melt <destination_folder> <source_URL>
+sn0 --melt <destination_folder> <source_URL>
 ```
 
 --bank and -- melt can be used at the same time in any order.
 
-If you want another feature, please [create an issue for it.](https://github.com/styromaniac/Snow/issues/new)
+If you want another feature, please [create an issue for it.](https://github.com/styromaniac/sn0/issues/new)
