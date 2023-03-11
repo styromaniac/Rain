@@ -38,6 +38,10 @@ OpenCamera/example.webp	044185a9e6ceef9a751fa85efd445eb8b7353e786918650e6b7624c3
 ```
 sn0 <destination_folder> <source_URL>
 ```
+or...
+```
+sn0 <source_URL> <destination_folder>
+```
 
 If you want older copies to save as backup copies, then use --bank.
 ```
