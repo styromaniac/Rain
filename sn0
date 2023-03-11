@@ -37,6 +37,14 @@ class LinkParser(HTMLParser):
                 return attr[1]
 
 def download_website(source, dest, bank, melt):
+
+    # Download index.html
+    try:
+        html = download_url(source)
+    except Exception as e:
+        print(f'Error downloading {source}: {e}')
+        return
+
     # Download sn0.txt
     checksum_url = urllib.parse.urljoin(source, 'sn0.txt')
     try:
@@ -95,13 +103,7 @@ def download_website(source, dest, bank, melt):
                     print(f'Removing {file_path}...')
                     os.remove(file_path)
 
-    # Download website
-    try:
-        html = download_url(source)
-    except Exception as e:
-        print(f'Error downloading {source}: {e}')
-        return
-
+    # Parse links in index.html
     parser = LinkParser(source)
     parser.feed(html)
     urls = parser.links

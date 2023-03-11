@@ -93,6 +93,9 @@ class sn0Downloader(Gtk.Window):
         with open("settings.txt", "w") as f:
             f.write(f"{source}\n{dest}\n{str(self.bank_switch.get_active())}\n{str(self.melt_switch.get_active())}")
 
+        # Close the window
+        self.destroy()
+
 win = sn0Downloader()
 win.connect("destroy", Gtk.main_quit)
 win.show_all()
