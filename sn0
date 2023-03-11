@@ -234,9 +234,22 @@ def get_sha3_512sum(file_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Download a website and its assets.')
-    parser.add_argument('dest', help='The destination directory for the downloaded website.')
-    parser.add_argument('source', help='The URL of the website to download.')
+    parser.add_argument('args', nargs=2, help='The destination directory for the downloaded website and the URL of the website to download.')
     parser.add_argument('--bank', action='store_true', help='Create a backup of files before overwriting them.')
     parser.add_argument('--melt', action='store_true', help='Delete local files in subfolders not listed in sn0.txt except for .bak files.')
     args = parser.parse_args()
-    download_website(args.source, args.dest, args.bank, args.melt)
+
+    dest = None
+    source = None
+
+    for arg in args.args:
+        if os.path.isdir(arg):
+            dest = arg
+        elif re.match(r'^https?://', arg):
+            source = arg
+
+    if dest is None or source is None:
+        print('Error: Please provide a valid destination directory and website URL.')
+        sys.exit(1)
+
+    download_website(source, dest, args.bank, args.melt)
