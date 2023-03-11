@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
+import subprocess
+
+class sn0Downloader(Gtk.Window):
+
+    def __init__(self):
+        Gtk.Window.__init__(self, title="sn0 GUI")
+        self.set_border_width(6)
+
+        self.source_entry = Gtk.Entry()
+        self.source_entry.set_text("https://example.com/")
+        self.source_entry.set_margin_bottom(6)
+
+        self.dest_entry = Gtk.Entry()
+        self.dest_entry.set_text("/home/user/Downloads")
+        self.dest_entry.set_margin_bottom(6)
+
+        self.dest_button = Gtk.Button(label="Select Folder")
+        self.dest_button.connect("clicked", self.on_dest_button_clicked)
+        self.dest_button.set_margin_bottom(6)
+
+        self.bank_switch = Gtk.Switch()
+        self.bank_switch.set_active(False)
+        self.bank_switch.set_margin_bottom(6)
+
+        self.melt_switch = Gtk.Switch()
+        self.melt_switch.set_active(False)
+        self.melt_switch.set_margin_bottom(6)
+
+        self.download_button = Gtk.Button(label="Download")
+        self.download_button.connect("clicked", self.on_download_button_clicked)
+
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.add(vbox)
+
+        source_label = Gtk.Label(label="Source URL:")
+        vbox.pack_start(source_label, False, False, 0)
+        vbox.pack_start(self.source_entry, False, False, 0)
+
+        dest_label = Gtk.Label(label="Destination folder:")
+        vbox.pack_start(dest_label, False, False, 0)
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        hbox.pack_start(self.dest_entry, True, True, 0)
+        hbox.pack_start(self.dest_button, False, False, 0)
+        vbox.pack_start(hbox, False, False, 0)
+
+        bank_label = Gtk.Label(label="Create backup files:")
+        vbox.pack_start(bank_label, False, False, 0)
+        vbox.pack_start(self.bank_switch, False, False, 0)
+
+        melt_label = Gtk.Label(label="Delete unused files:")
+        vbox.pack_start(melt_label, False, False, 0)
+        vbox.pack_start(self.melt_switch, False, False, 0)
+
+        vbox.pack_start(self.download_button, False, False, 0)
+
+        # Load last settings
+        try:
+            with open("settings.txt", "r") as f:
+                settings = f.read().splitlines()
+                self.source_entry.set_text(settings[0])
+                self.dest_entry.set_text(settings[1])
+                self.bank_switch.set_active(settings[2] == "True")
+                self.melt_switch.set_active(settings[3] == "True")
+        except:
+            pass
+
+    def on_dest_button_clicked(self, button):
+        dialog = Gtk.FileChooserDialog("Please choose a folder", self,
+            Gtk.FileChooserAction.SELECT_FOLDER,
+            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+             "Select", Gtk.ResponseType.OK))
+
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            self.dest_entry.set_text(dialog.get_filename())
+        dialog.destroy()
+
+    def on_download_button_clicked(self, button):
+        source = self.source_entry.get_text()
+        dest = self.dest_entry.get_text()
+        bank = "--bank" if self.bank_switch.get_active() else ""
+        melt = "--melt" if self.melt_switch.get_active() else ""
+
+        command = f"sn0 {bank} {melt} {dest} {source}"
+        subprocess.call(command, shell=True)
+
+        # Save settings
+        with open("settings.txt", "w") as f:
+            f.write(f"{source}\n{dest}\n{str(self.bank_switch.get_active())}\n{str(self.melt_switch.get_active())}")
+
+win = sn0Downloader()
+win.connect("destroy", Gtk.main_quit)
+win.show_all()
+Gtk.main()

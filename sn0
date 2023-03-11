@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+
+import os
+import re
+import urllib.parse
+import urllib.request
+import sys
+from html.parser import HTMLParser
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
+from pathlib import Path
+import argparse
+
+class LinkParser(HTMLParser):
+    def __init__(self, base_url):
+        super().__init__()
+        self.base_url = base_url
+        self.links = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ['a', 'link']:
+            href = self.get_attr(attrs, 'href')
+            if href is not None:
+                self.add_link(href)
+        elif tag in ['script', 'img', 'video', 'audio']:
+            src = self.get_attr(attrs, 'src')
+            if src is not None:
+                self.add_link(src)
+
+    def add_link(self, link):
+        url = urllib.parse.urljoin(self.base_url, link)
+        self.links.append(url)
+
+    def get_attr(self, attrs, attr_name):
+        for attr in attrs:
+            if attr[0].lower() == attr_name:
+                return attr[1]
+
+def download_website(source, dest, bank, melt):
+    # Download sn0.txt
+    checksum_url = urllib.parse.urljoin(source, 'sn0.txt')
+    try:
+        with urllib.request.urlopen(checksum_url) as response:
+            checksum_file = response.read()
+        with open(Path(dest) / 'sn0.txt', 'wb') as f:
+            f.write(checksum_file)
+    except Exception as e:
+        print(f'Error downloading {checksum_url}: {e}')
+        return
+
+    # Check sha3-512sums of local copies against those in sn0.txt
+    updated_files = {}
+    downloaded_files = {}
+
+    with open(Path(dest) / 'sn0.txt', 'r') as f:
+        checksums = f.readlines()
+
+        for checksum in checksums:
+            if checksum.startswith('#') or len(checksum.strip()) == 0:
+                continue
+
+            file_path, sha3_512sum = checksum.split()
+            local_path = Path(dest) / file_path
+
+            if not local_path.exists():
+                print(f'Downloading {file_path}...')
+                download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
+                updated_files[local_path] = sha3_512sum
+            else:
+                with open(local_path, 'rb') as f:
+                    content = f.read()
+                    hash_object = hashlib.sha3_512(content)
+                    hex_dig = hash_object.hexdigest()
+                    if hex_dig == sha3_512sum:
+                        print(f'{file_path} already up-to-date.')
+                        downloaded_files[local_path] = sha3_512sum
+                    else:
+                        print(f'Downloading {file_path}...')
+                        if bank:
+                            backup_file(local_path)
+                        download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
+                        updated_files[local_path] = sha3_512sum
+
+    # Melt subfolders
+    if melt:
+        subfolders = set([os.path.dirname(checksum.split()[0]) for checksum in checksums])
+        for subfolder in subfolders:
+            local_subfolder = Path(dest) / subfolder
+            if not local_subfolder.exists():
+                continue
+            for file_path in local_subfolder.glob('*'):
+                if file_path.name.endswith('.bak'):
+                    continue
+                if not any(str(file_path).endswith(checksum.split()[0]) for checksum in checksums):
+                    print(f'Removing {file_path}...')
+                    os.remove(file_path)
+
+    # Download website
+    try:
+        html = download_url(source)
+    except Exception as e:
+        print(f'Error downloading {source}: {e}')
+        return
+
+    parser = LinkParser(source)
+    parser.feed(html)
+    urls = parser.links
+
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        futures = []
+        for url in urls:
+            if source not in url:
+                continue
+
+            path = url.replace(source, '')
+
+            if path == '':
+                path = 'index.html'
+
+            dest_path = Path(dest) / path.lstrip('/')
+
+            if dest_path in updated_files:
+                if updated_files[dest_path] == get_sha3_512sum(dest_path):
+                    print(f'{path} already up-to-date.')
+                    continue
+
+            if dest_path in downloaded_files:
+                if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
+                    print(f'{path} already downloaded and verified.')
+                    continue
+                else:
+                    print(f'Re-downloading {path}...')
+                    if bank:
+                        backup_file(dest_path)
+            else:
+                print(f'Downloading {path}...')
+            
+            if bank:
+                backup_file(dest_path)
+
+            future = executor.submit(download_url_to_file, url, source, dest, downloaded_files)
+            futures.append(future)
+
+        for future in futures:
+            try:
+                result = future.result()
+            except Exception as e:
+                print(f'Error downloading {future}: {e}')
+
+    # Save index.html
+    dest_path = Path(dest) / 'index.html'
+    with open(dest_path, 'w') as f:
+        f.write(html)
+
+    # Update links in index.html
+    index_links = [url.replace(source, '') for url in urls if source in url]
+    update_links_in_file(dest_path, index_links)
+
+def download_url_to_file(url, source, dest, downloaded_files):
+    try:
+        with urllib.request.urlopen(url) as response:
+            content = response.read()
+    except Exception as e:
+        print(f'Error downloading {url}: {e}')
+        return
+
+    path = url.replace(source, '')
+
+    if path == '':
+        path = 'index.html'
+
+    dest_path = Path(dest) / path.lstrip('/')
+    dir_path = dest_path.parent
+
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    if dest_path in downloaded_files:
+        if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
+            print(f'{path} already downloaded and verified.')
+            return
+        else:
+            print(f'Re-downloading {path}...')
+            backup_file(dest_path, Path(dest_path).read_bytes())
+
+    try:
+        with open(dest_path, 'wb') as f:
+            f.write(content)
+    except Exception as e:
+        print(f'Error writing file {dest_path}: {e}')
+        return
+
+    downloaded_files[dest_path] = get_sha3_512sum(dest_path)
+
+def backup_file(file_path, content=None):
+    path, ext = os.path.splitext(file_path)
+    i = 1
+    original_path = f'{path}{ext}.{i}.bak'
+    while os.path.exists(original_path):
+        i += 1
+        original_path = f'{path}{ext}.{i}.bak'
+    if content is None:
+        with open(file_path, 'rb') as f:
+            content = f.read()
+    with open(original_path, 'wb') as backup_file:
+        backup_file.write(content)
+    print(f'Backup created for {file_path} at {original_path}')
+
+def download_url(url, binary=False):
+    with urllib.request.urlopen(url) as response:
+        if binary:
+            return response.read()
+        else:
+            return response.read().decode('utf-8')
+
+def update_links_in_file(file_path, links):
+    with open(file_path, 'r') as f:
+        content = f.read()
+
+    for link in links:
+        relative_path = os.path.relpath(link, os.path.dirname(file_path))
+        content = content.replace(link, relative_path)
+
+    with open(file_path, 'w') as f:
+        f.write(content)
+
+def get_sha3_512sum(file_path):
+    with open(file_path, 'rb') as f:
+        content = f.read()
+        hash_object = hashlib.sha3_512(content)
+        hex_dig = hash_object.hexdigest()
+        return hex_dig
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Download a website and its assets.')
+    parser.add_argument('dest', help='The destination directory for the downloaded website.')
+    parser.add_argument('source', help='The URL of the website to download.')
+    parser.add_argument('--bank', action='store_true', help='Create a backup of files before overwriting them.')
+    parser.add_argument('--melt', action='store_true', help='Delete local files in subfolders not listed in sn0.txt except for .bak files.')
+    args = parser.parse_args()
+    download_website(args.source, args.dest, args.bank, args.melt)
