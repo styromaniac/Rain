@@ -100,8 +100,8 @@ def download_website(source, dest, bank, melt):
                 if file_path.name.endswith('.bak'):
                     continue
                 if not any(str(file_path).endswith(checksum.split()[0]) for checksum in checksums):
-                    print(f'Removing {file_path}...')
                     os.remove(file_path)
+                    print(f'{file_path} deleted.')
 
     # Parse links in index.html
     parser = LinkParser(source)
