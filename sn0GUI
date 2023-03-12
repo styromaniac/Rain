@@ -4,6 +4,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 import subprocess
+import os
 
 class sn0Downloader(Gtk.Window):
 
@@ -16,7 +17,7 @@ class sn0Downloader(Gtk.Window):
         self.source_entry.set_margin_bottom(6)
 
         self.dest_entry = Gtk.Entry()
-        self.dest_entry.set_text("/home/user/Downloads")
+        self.dest_entry.set_text(os.path.expanduser("~/Downloads"))
         self.dest_entry.set_margin_bottom(6)
 
         self.dest_button = Gtk.Button(label="Select Folder")
@@ -60,7 +61,7 @@ class sn0Downloader(Gtk.Window):
 
         # Load last settings
         try:
-            with open("sn0settings.txt", "r") as f:
+            with open(os.path.expanduser("~") + "/sn0settings.txt", "r") as f:
                 settings = f.read().splitlines()
                 self.source_entry.set_text(settings[0])
                 self.dest_entry.set_text(settings[1])
@@ -90,7 +91,7 @@ class sn0Downloader(Gtk.Window):
         subprocess.call(command, shell=True)
 
         # Save settings
-        with open("sn0settings.txt", "w") as f:
+        with open(os.path.expanduser("~") + "/sn0settings.txt", "w") as f:
             f.write(f"{source}\n{dest}\n{str(self.bank_switch.get_active())}\n{str(self.melt_switch.get_active())}")
 
         # Close the window
