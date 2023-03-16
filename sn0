@@ -67,9 +67,8 @@ def download_website(source, dest, bank, melt):
             if checksum.startswith('#') or len(checksum.strip()) == 0:
                 continue
 
-            checksum_parts = checksum.split()
-            sha3_512sum = checksum_parts[0]
-            file_path = checksum_parts[1][1:]
+            file_path = checksum.split('*')[1].strip()
+            sha3_512sum = checksum.split('*')[0].strip()
 
             local_path = Path(dest) / file_path
 
@@ -94,7 +93,7 @@ def download_website(source, dest, bank, melt):
 
     # Melt subfolders
     if melt:
-        subfolders = set([os.path.dirname(checksum_parts[1][1:]) for checksum_parts in checksums])
+        subfolders = set([os.path.dirname(checksum.split('*')[1].strip()) for checksum in checksums])
         for subfolder in subfolders:
             local_subfolder = Path(dest) / subfolder
             if not local_subfolder.exists():
@@ -102,7 +101,7 @@ def download_website(source, dest, bank, melt):
             for file_path in local_subfolder.glob('*'):
                 if file_path.name.endswith('.bak'):
                     continue
-                if not any(str(file_path).endswith(checksum_parts[1][1:]) for checksum_parts in checksums):
+                if not any(str(file_path).endswith(checksum.split('*')[1].strip()) for checksum in checksums):
                     os.remove(file_path)
                     print(f'{file_path} deleted.')
 
