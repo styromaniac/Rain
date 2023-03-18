@@ -62,11 +62,15 @@ class sn0Downloader(Gtk.Window):
         # Load last settings
         try:
             with open(os.path.expanduser("~") + "/sn0settings.txt", "r") as f:
-                settings = f.read().splitlines()
-                self.source_entry.set_text(settings[0])
-                self.dest_entry.set_text(settings[1])
-                self.bank_switch.set_active(settings[2] == "True")
-                self.melt_switch.set_active(settings[3] == "True")
+                settings = {}
+                for line in f:
+                    key, value = line.strip().split("=", 1)
+                    settings[key] = value
+                
+                self.source_entry.set_text(settings["source"])
+                self.dest_entry.set_text(settings["dest"])
+                self.bank_switch.set_active(settings["bank"] == "True")
+                self.melt_switch.set_active(settings["melt"] == "True")
         except:
             pass
 
@@ -92,7 +96,10 @@ class sn0Downloader(Gtk.Window):
 
         # Save settings
         with open(os.path.expanduser("~") + "/sn0settings.txt", "w") as f:
-            f.write(f"{source}\n{dest}\n{str(self.bank_switch.get_active())}\n{str(self.melt_switch.get_active())}")
+            f.write(f"source={source}\n")
+            f.write(f"dest={dest}\n")
+            f.write(f"bank={str(self.bank_switch.get_active())}\n")
+            f.write(f"melt={str(self.melt_switch.get_active())}\n")
 
         # Close the window
         self.destroy()
