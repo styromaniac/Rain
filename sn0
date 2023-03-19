@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from pathlib import Path
 import argparse
+import time
 
 class LinkParser(HTMLParser):
     def __init__(self, base_url):
@@ -36,13 +37,25 @@ class LinkParser(HTMLParser):
             if attr[0].lower() == attr_name:
                 return attr[1]
 
-def progress_bar(current, total, bar_length=40):
+def format_download_rate(download_rate):
+    units = ['B/s', 'KB/s', 'MB/s', 'GB/s', 'TB/s', 'PB/s']
+    unit_index = 0
+
+    while download_rate >= 1024 and unit_index < len(units) - 1:
+        download_rate /= 1024
+        unit_index += 1
+
+    return f"{download_rate:8.2f} {units[unit_index]}"
+
+def progress_bar(current, total, start_time, bar_length=40):
+    elapsed_time = time.time() - start_time
     filled_length = int(bar_length * current // total)
     bar = '=' * filled_length + '-' * (bar_length - filled_length)
-    percent = round((current / total) * 100, 2)
-    sys.stdout.write(f'\r|{bar}| {percent}%')
+    percent = (current / total) * 100
+    download_rate = current / elapsed_time  # Calculate download rate in B/s
+    formatted_download_rate = format_download_rate(download_rate)
+    sys.stdout.write(f'\r|{bar}| {percent:6.2f}% ({formatted_download_rate})')
     sys.stdout.flush()
-
 
 def download_website(source, dest, bank, melt):
 
@@ -169,6 +182,7 @@ def download_website(source, dest, bank, melt):
     update_links_in_file(dest_path, index_links)
 
 def download_url_to_file(url, source, dest, downloaded_files):
+    start_time = time.time()  # Add start time
     try:
         with urllib.request.urlopen(url) as response:
             content_length = int(response.headers['Content-Length'])
@@ -181,7 +195,7 @@ def download_url_to_file(url, source, dest, downloaded_files):
                     break
                 content.extend(buffer)
                 bytes_read += len(buffer)
-                progress_bar(bytes_read, content_length)
+                progress_bar(bytes_read, content_length, start_time)  # Pass start time
             print()  # Add a newline after the progress bar
     except Exception as e:
         print(f'Error downloading {url}: {e}')
