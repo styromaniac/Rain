@@ -60,7 +60,7 @@ def progress_bar(current, total, start_time, bar_length=None):
 
     elapsed_time = time.time() - start_time
     filled_length = int(bar_length * current // total)
-    bar = '=' * filled_length + '-' * (bar_length - filled_length)
+    bar = '\033[32m━\033[0m' * filled_length + ' ' * (bar_length - filled_length)
     percent = (current / total) * 100
     download_rate = current / elapsed_time  # Calculate download rate in B/s
     formatted_download_rate = format_download_rate(download_rate)
