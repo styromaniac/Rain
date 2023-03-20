@@ -39,7 +39,8 @@ class LinkParser(HTMLParser):
                 return attr[1]
 
 def format_download_rate(download_rate):
-    units = ['B/s', 'KB/s', 'MB/s', 'GB/s', 'TB/s', 'PB/s']
+    download_rate *= 8  # Convert bytes per second to bits per second
+    units = ['b/s', 'Kb/s', 'Mb/s', 'Gb/s', 'Tb/s', 'Pb/s']
     unit_index = 0
 
     while download_rate >= 1024 and unit_index < len(units) - 1:
