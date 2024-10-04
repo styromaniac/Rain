@@ -1,4 +1,5 @@
-![SNOWFLAKE](https://user-images.githubusercontent.com/43807387/223344700-f0cb2109-52a1-48f7-9769-af673d11102d.svg)
+![sn0](https://github.com/user-attachments/assets/6e5e3a1d-b19f-47b1-974d-1627c95c5362)
+
 
 Sn0 is a Python program that helps to download and update websites. It does this by downloading the website's HTML content and all the files referenced in it. The program also verifies the checksums of the downloaded files to ensure they are not corrupted. It also checks if there are any new files on the website and downloads them. Additionally, it updates the links in the HTML content to match the local file system. The program has options to create backups of the downloaded files and to remove files from subfolders that are not referenced in the HTML content.
 
