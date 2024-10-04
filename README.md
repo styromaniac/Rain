@@ -52,6 +52,6 @@ If you want files that were deleted from the site to be deleted locally, then us
 sn0 --melt <destination_folder> <source_URL>
 ```
 
---bank and -- melt can be used at the same time in any order.
+--bank and --melt can be used at the same time in any order.
 
 If you want another feature, please [create an issue for it.](https://github.com/styromaniac/sn0/issues/new)
