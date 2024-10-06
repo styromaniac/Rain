@@ -10,8 +10,6 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from pathlib import Path
 import argparse
-import time
-import shutil
 
 class LinkParser(HTMLParser):
     def __init__(self, base_url):
@@ -38,40 +36,7 @@ class LinkParser(HTMLParser):
             if attr[0].lower() == attr_name:
                 return attr[1]
 
-def format_download_rate(download_rate):
-    download_rate *= 8  # Convert bytes per second to bits per second
-    units = ['b/s', 'Kb/s', 'Mb/s', 'Gb/s', 'Tb/s', 'Pb/s']
-    unit_index = 0
-
-    while download_rate >= 1024 and unit_index < len(units) - 1:
-        download_rate /= 1024
-        unit_index += 1
-
-    return f"{download_rate:8.2f} {units[unit_index]}"
-
-def progress_bar(current, total, start_time, bar_length=None):
-    terminal_width = shutil.get_terminal_size().columns
-    fixed_characters = 50  # Adjust this value based on the extra characters in your progress bar
-    
-    if bar_length is None:
-        if terminal_width > 80:
-            bar_length = 40 + (terminal_width - 80)
-        else:
-            bar_length = max(40, terminal_width - fixed_characters)
-
-    elapsed_time = time.time() - start_time
-    filled_length = int(bar_length * current // total)
-    bar = '\033[32m━\033[0m' * filled_length + ' ' * (bar_length - filled_length)
-    percent = (current / total) * 100
-    download_rate = current / elapsed_time  # Calculate download rate in B/s
-    formatted_download_rate = format_download_rate(download_rate)
-    remaining_time = (total - current) / download_rate  # Calculate remaining time
-    eta = time.strftime("%H:%M:%S", time.gmtime(remaining_time))  # Format ETA
-    sys.stdout.write(f'\033[K\r|{bar}| {percent:6.2f}% ({formatted_download_rate}) ETA: {eta}')
-    sys.stdout.flush()
-
 def download_website(source, dest, bank, melt):
-
     # Download index.html
     try:
         html = download_url(source)
@@ -191,25 +156,13 @@ def download_website(source, dest, bank, melt):
         f.write(html)
 
     # Update links in index.html
-    index_links = [url.replace(source, '') for url in urls if source in url]
+    index_links = [url.replace(source, '') for url in urls if source in url and url.replace(source, '')]
     update_links_in_file(dest_path, index_links)
 
 def download_url_to_file(url, source, dest, downloaded_files):
-    start_time = time.time()  # Add start time
     try:
         with urllib.request.urlopen(url) as response:
-            content_length = int(response.headers['Content-Length'])
-            content = bytearray()
-            buffer_size = 4096
-            bytes_read = 0
-            while True:
-                buffer = response.read(buffer_size)
-                if not buffer:
-                    break
-                content.extend(buffer)
-                bytes_read += len(buffer)
-                progress_bar(bytes_read, content_length, start_time)  # Pass start time
-            print()  # Add a newline after the progress bar
+            content = response.read()
     except Exception as e:
         print(f'Error downloading {url}: {e}')
         return
@@ -226,28 +179,20 @@ def download_url_to_file(url, source, dest, downloaded_files):
 
     if dest_path in downloaded_files:
         if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
-            print(f'\n{path} already downloaded and verified.')
+            print(f'{path} already downloaded and verified.')
             return
         else:
-            print(f'\nRe-downloading {path}...')
+            print(f'Re-downloading {path}...')
             backup_file(dest_path, Path(dest_path).read_bytes())
 
     try:
         with open(dest_path, 'wb') as f:
             f.write(content)
     except Exception as e:
-        print(f'\nError writing file {dest_path}: {e}')
+        print(f'Error writing file {dest_path}: {e}')
         return
 
     downloaded_files[dest_path] = get_sha3_512sum(dest_path)
-
-def print_progress_bar(progress, url, bar_length=40):
-    filled_length = int(round(bar_length * progress))
-    bar = '=' * filled_length + '-' * (bar_length - filled_length)
-    sys.stdout.write(f'\r{url}: |{bar}| {round(progress * 100, 1)}%')
-    sys.stdout.flush()
-    if progress == 1:
-        print()
 
 def backup_file(file_path, content=None):
     path, ext = os.path.splitext(file_path)
@@ -275,8 +220,14 @@ def update_links_in_file(file_path, links):
         content = f.read()
 
     for link in links:
-        relative_path = os.path.relpath(link, os.path.dirname(file_path))
-        content = content.replace(link, relative_path)
+        if not link:  # Skip empty links
+            continue
+        try:
+            relative_path = os.path.relpath(link, os.path.dirname(file_path))
+            content = content.replace(link, relative_path)
+        except ValueError:
+            print(f"Warning: Could not compute relative path for '{link}'. Using original link.")
+            continue
 
     with open(file_path, 'w') as f:
         f.write(content)
