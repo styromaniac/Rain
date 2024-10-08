@@ -177,8 +177,11 @@ def download_website(source, dest, bank, melt):
 
     # Save index.html
     dest_path = Path(dest) / 'index.html'
-    with open(dest_path, 'w') as f:
-        f.write(html)
+    if not os.path.isdir(dest_path):
+        with open(dest_path, 'w') as f:
+            f.write(html)
+    else:
+        print(f"Skipping writing index.html: {dest_path} is a directory")
 
     # Update links in index.html
     index_links = [url.replace(source, '') for url in urls if source in url and url.replace(source, '')]
@@ -192,6 +195,10 @@ def download_url_to_file(url, source, dest, downloaded_files):
 
     dest_path = Path(dest) / path.lstrip('/')
     dir_path = dest_path.parent
+
+    if os.path.isdir(dest_path):
+        print(f"Skipping download for directory: {dest_path}")
+        return
 
     dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -237,8 +244,8 @@ def download_url_to_file(url, source, dest, downloaded_files):
     downloaded_files[dest_path] = get_sha3_512sum(dest_path)
 
 def backup_file(file_path, content=None):
-    if not os.path.exists(file_path):
-        print(f"Skipping backup for non-existent file: {file_path}")
+    if not os.path.exists(file_path) or os.path.isdir(file_path):
+        print(f"Skipping backup for non-existent file or directory: {file_path}")
         return
 
     path, ext = os.path.splitext(file_path)
@@ -252,7 +259,7 @@ def backup_file(file_path, content=None):
             content = f.read()
     with open(original_path, 'wb') as backup_file:
         backup_file.write(content)
-    print(f'Backup created for {file_path} at {original_path}')
+    print(f'Backup created for file {file_path} at {original_path}')
 
 def download_url(url, binary=False):
     with urllib.request.urlopen(url) as response:
