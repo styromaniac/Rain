@@ -74,6 +74,9 @@ def download_website(source, dest, bank, melt):
             file_path = normalize_path(file_path.strip())
             local_path = Path(dest) / file_path
 
+            if file_path == 'index.html':
+                continue  # Skip index.html in checksum verification
+
             if not local_path.exists():
                 print(f'Downloading {file_path}...')
                 download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
@@ -138,24 +141,25 @@ def download_website(source, dest, bank, melt):
                 print(f'Skipping directory: {path}')
                 continue
 
-            if dest_path in updated_files:
-                if updated_files[dest_path] == get_sha3_512sum(dest_path):
-                    print(f'{path} already up-to-date.')
-                    continue
+            if path != 'index.html':
+                if dest_path in updated_files:
+                    if updated_files[dest_path] == get_sha3_512sum(dest_path):
+                        print(f'{path} already up-to-date.')
+                        continue
 
-            if dest_path in downloaded_files:
-                if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
-                    print(f'{path} already downloaded and verified.')
-                    continue
+                if dest_path in downloaded_files:
+                    if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
+                        print(f'{path} already downloaded and verified.')
+                        continue
+                    else:
+                        print(f'Re-downloading {path}...')
+                        if bank:
+                            backup_file(dest_path)
                 else:
-                    print(f'Re-downloading {path}...')
-                    if bank:
-                        backup_file(dest_path)
-            else:
-                print(f'Downloading {path}...')
-            
-            if bank:
-                backup_file(dest_path)
+                    print(f'Downloading {path}...')
+                
+                if bank:
+                    backup_file(dest_path)
 
             future = executor.submit(download_url_to_file, url, source, dest, downloaded_files)
             futures.append(future)
@@ -166,10 +170,11 @@ def download_website(source, dest, bank, melt):
             except Exception as e:
                 print(f'Error downloading {future}: {e}')
 
-    # Save index.html
+    # Always update index.html without backing up
     dest_path = Path(dest) / 'index.html'
     with open(dest_path, 'w') as f:
         f.write(html)
+    print("index.html updated.")
 
     # Update links in index.html
     index_links = [normalize_path(url.replace(source, '')) for url in urls if source in url and url.replace(source, '')]
@@ -193,13 +198,13 @@ def download_url_to_file(url, source, dest, downloaded_files):
 
     dir_path.mkdir(parents=True, exist_ok=True)
 
-    if dest_path in downloaded_files:
-        if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
-            print(f'{path} already downloaded and verified.')
-            return
-        else:
-            print(f'Re-downloading {path}...')
-            backup_file(dest_path, Path(dest_path).read_bytes())
+    if path != 'index.html':
+        if dest_path in downloaded_files:
+            if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
+                print(f'{path} already downloaded and verified.')
+                return
+            else:
+                print(f'Re-downloading {path}...')
 
     try:
         with open(dest_path, 'wb') as f:
@@ -208,11 +213,12 @@ def download_url_to_file(url, source, dest, downloaded_files):
         print(f'Error writing file {dest_path}: {e}')
         return
 
-    downloaded_files[dest_path] = get_sha3_512sum(dest_path)
+    if path != 'index.html':
+        downloaded_files[dest_path] = get_sha3_512sum(dest_path)
 
 def backup_file(file_path, content=None):
-    if not os.path.isfile(file_path):
-        return  # Don't attempt to backup directories
+    if not os.path.isfile(file_path) or file_path.name == 'index.html':
+        return  # Don't attempt to backup directories or index.html
     
     path, ext = os.path.splitext(file_path)
     i = 1
