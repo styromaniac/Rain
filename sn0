@@ -153,6 +153,12 @@ def download_website(source, dest, bank, melt):
         print(f'Error downloading {source}: {e}')
         return
 
+    # Always update index.html without backing up
+    dest_path = Path(dest) / 'index.html'
+    with open(dest_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+    print("index.html updated.")
+
     parser = LinkParser(source)
     parser.feed(html)
     urls = parser.links
@@ -166,7 +172,7 @@ def download_website(source, dest, bank, melt):
             path = normalize_path(url.replace(source, ''))
 
             if path == '':
-                path = 'index.html'
+                continue  # Skip index.html as it's already been updated
 
             dest_path = Path(dest) / path.lstrip('/')
 
@@ -174,25 +180,24 @@ def download_website(source, dest, bank, melt):
                 print(f'Skipping directory: {path}')
                 continue
 
-            if path != 'index.html':
-                if dest_path in updated_files:
-                    if updated_files[dest_path] == get_sha3_512sum(dest_path):
-                        print(f'{path} already up-to-date.')
-                        continue
+            if dest_path in updated_files:
+                if updated_files[dest_path] == get_sha3_512sum(dest_path):
+                    print(f'{path} already up-to-date.')
+                    continue
 
-                if dest_path in downloaded_files:
-                    if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
-                        print(f'{path} already downloaded and verified.')
-                        continue
-                    else:
-                        print(f'Re-downloading {path}...')
-                        if bank:
-                            backup_file(dest_path)
+            if dest_path in downloaded_files:
+                if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
+                    print(f'{path} already downloaded and verified.')
+                    continue
                 else:
-                    print(f'Downloading {path}...')
-                
-                if bank:
-                    backup_file(dest_path)
+                    print(f'Re-downloading {path}...')
+                    if bank:
+                        backup_file(dest_path)
+            else:
+                print(f'Downloading {path}...')
+            
+            if bank:
+                backup_file(dest_path)
 
             future = executor.submit(download_url_to_file, url, source, dest, downloaded_files)
             futures.append(future)
@@ -203,14 +208,8 @@ def download_website(source, dest, bank, melt):
             except Exception as e:
                 print(f'Error downloading {future}: {e}')
 
-    # Always update index.html without backing up
-    dest_path = Path(dest) / 'index.html'
-    with open(dest_path, 'w') as f:
-        f.write(html)
-    print("index.html updated.")
-
     # Update links in index.html
-    update_links_in_file(dest_path, urls, source)
+    update_links_in_file(Path(dest) / 'index.html', urls, source)
 
 def download_url_to_file(url, source, dest, downloaded_files):
     try:
@@ -274,7 +273,7 @@ def download_url(url, binary=False):
 
 def update_links_in_file(file_path, links, base_url):
     print(f"Updating links in {file_path}")
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     for link in links:
@@ -299,7 +298,7 @@ def update_links_in_file(file_path, links, base_url):
                                  content)
                 print(f"  Used normalized link instead: {normalized_path}")
 
-    with open(file_path, 'w') as f:
+    with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
 
 def get_sha3_512sum(file_path):
