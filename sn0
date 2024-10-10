@@ -12,23 +12,35 @@ from pathlib import Path
 import argparse
 
 def normalize_path(path):
+    # Preserve the leading slash if it exists
+    leading_slash = '/' if path.startswith('/') else ''
+    
+    # Split the path into parts
     parts = path.split('/')
-    normalized = []
+    # Initialize a stack to keep track of the directory levels
+    stack = []
     for part in parts:
-        if part == '..':
-            if normalized:
-                normalized.pop()
-        elif part and part != '.':
-            normalized.append(part)
-    return '/'.join(normalized)
+        if part == '.' or part == '':
+            continue
+        elif part == '..':
+            if stack and stack[-1] != '..':
+                stack.pop()
+            else:
+                stack.append(part)
+        else:
+            stack.append(part)
+    # Join the parts back together, preserving the leading slash
+    return leading_slash + '/'.join(stack)
 
 class LinkParser(HTMLParser):
     def __init__(self, base_url):
         super().__init__()
         self.base_url = base_url
         self.links = []
+        self.current_tag = None
 
     def handle_starttag(self, tag, attrs):
+        self.current_tag = tag
         if tag in ['a', 'link']:
             href = self.get_attr(attrs, 'href')
             if href is not None:
@@ -38,9 +50,20 @@ class LinkParser(HTMLParser):
             if src is not None:
                 self.add_link(src)
 
+    def handle_endtag(self, tag):
+        self.current_tag = None
+
+    def handle_data(self, data):
+        if self.current_tag == 'script':
+            # Look for URLs in inline JavaScript
+            urls = re.findall(r'(?:(?:https?|ftp):\/\/)?[\w/\-?=%.]+\.[\w/\-?=%.]+', data)
+            for url in urls:
+                self.add_link(url)
+
     def add_link(self, link):
-        url = urllib.parse.urljoin(self.base_url, normalize_path(link))
-        self.links.append(url)
+        url = urllib.parse.urljoin(self.base_url, link)
+        if url not in self.links:
+            self.links.append(url)
 
     def get_attr(self, attrs, attr_name):
         for attr in attrs:
@@ -177,8 +200,7 @@ def download_website(source, dest, bank, melt):
     print("index.html updated.")
 
     # Update links in index.html
-    index_links = [normalize_path(url.replace(source, '')) for url in urls if source in url and url.replace(source, '')]
-    update_links_in_file(dest_path, index_links)
+    update_links_in_file(dest_path, urls, source)
 
 def download_url_to_file(url, source, dest, downloaded_files):
     try:
@@ -240,7 +262,7 @@ def download_url(url, binary=False):
         else:
             return response.read().decode('utf-8')
 
-def update_links_in_file(file_path, links):
+def update_links_in_file(file_path, links, base_url):
     print(f"Updating links in {file_path}")
     with open(file_path, 'r') as f:
         content = f.read()
@@ -249,15 +271,22 @@ def update_links_in_file(file_path, links):
         print(f"Processing link: {link}")
         if link:  # Only process non-empty links
             try:
-                relative_path = os.path.relpath(link, os.path.dirname(file_path))
+                relative_path = os.path.relpath(urllib.parse.urljoin(base_url, link), base_url)
                 normalized_path = normalize_path(relative_path)
-                content = content.replace(link, normalized_path)
+                if not normalized_path.startswith(('/', '..')):
+                    normalized_path = './' + normalized_path
+                # Use regex to replace the link, preserving quotes and other attributes
+                content = re.sub(r'(href|src)=["\']' + re.escape(link) + r'["\']', 
+                                 r'\1="' + normalized_path + '"', 
+                                 content)
                 print(f"  Replaced {link} with {normalized_path}")
             except ValueError as e:
                 print(f"  Error processing {link}: {e}")
                 # If relpath fails, use the link as is
                 normalized_path = normalize_path(link)
-                content = content.replace(link, normalized_path)
+                content = re.sub(r'(href|src)=["\']' + re.escape(link) + r'["\']', 
+                                 r'\1="' + normalized_path + '"', 
+                                 content)
                 print(f"  Used normalized link instead: {normalized_path}")
 
     with open(file_path, 'w') as f:
