@@ -89,52 +89,62 @@ def download_website(source, dest, bank, melt):
     with open(Path(dest) / 'sn0.txt', 'r') as f:
         checksums = f.readlines()
 
-        for checksum in checksums:
-            if checksum.startswith('#') or len(checksum.strip()) == 0:
-                continue
+    valid_files = set()
+    for checksum in checksums:
+        if checksum.startswith('#') or len(checksum.strip()) == 0:
+            continue
+        sha3_512sum, file_path = checksum.split(maxsplit=1)
+        file_path = normalize_path(file_path.strip())
+        valid_files.add(file_path)
+        local_path = Path(dest) / file_path
 
-            sha3_512sum, file_path = checksum.split(maxsplit=1)
-            file_path = normalize_path(file_path.strip())
-            local_path = Path(dest) / file_path
+        if file_path == 'index.html':
+            continue  # Skip index.html in checksum verification
 
-            if file_path == 'index.html':
-                continue  # Skip index.html in checksum verification
-
-            if not local_path.exists():
-                print(f'Downloading {file_path}...')
-                download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
-                updated_files[local_path] = sha3_512sum
+        if not local_path.exists():
+            print(f'Downloading {file_path}...')
+            download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
+            updated_files[local_path] = sha3_512sum
+        else:
+            if os.path.isfile(local_path):
+                with open(local_path, 'rb') as f:
+                    content = f.read()
+                    hash_object = hashlib.sha3_512(content)
+                    hex_dig = hash_object.hexdigest()
+                    if hex_dig == sha3_512sum:
+                        print(f'{file_path} already up-to-date.')
+                        downloaded_files[local_path] = sha3_512sum
+                    else:
+                        print(f'Downloading {file_path}...')
+                        if bank:
+                            backup_file(local_path)
+                        download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
+                        updated_files[local_path] = sha3_512sum
             else:
-                if os.path.isfile(local_path):
-                    with open(local_path, 'rb') as f:
-                        content = f.read()
-                        hash_object = hashlib.sha3_512(content)
-                        hex_dig = hash_object.hexdigest()
-                        if hex_dig == sha3_512sum:
-                            print(f'{file_path} already up-to-date.')
-                            downloaded_files[local_path] = sha3_512sum
-                        else:
-                            print(f'Downloading {file_path}...')
-                            if bank:
-                                backup_file(local_path)
-                            download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
-                            updated_files[local_path] = sha3_512sum
-                else:
-                    print(f'Skipping directory: {file_path}')
+                print(f'Skipping directory: {file_path}')
+
+    # Add content.json and index.html to valid_files
+    valid_files.add('content.json')
+    valid_files.add('index.html')
 
     # Melt subfolders
     if melt:
-        subfolders = set([os.path.dirname(normalize_path(checksum.split(maxsplit=1)[1])) for checksum in checksums])
-        for subfolder in subfolders:
-            local_subfolder = Path(dest) / subfolder
-            if not local_subfolder.exists():
-                continue
-            for file_path in local_subfolder.glob('*'):
-                if file_path.name.endswith('.bak'):
-                    continue
-                if not any(str(file_path).endswith(normalize_path(checksum.split(maxsplit=1)[1].strip())) for checksum in checksums):
+        for root, dirs, files in os.walk(dest):
+            for file in files:
+                file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(file_path, dest)
+                normalized_path = normalize_path(relative_path)
+                if normalized_path not in valid_files and not file.endswith('.bak') and file not in ['sn0.txt', 'content.json', 'index.html']:
                     print(f'Removing {file_path}...')
                     os.remove(file_path)
+        
+        # Remove empty directories
+        for root, dirs, files in os.walk(dest, topdown=False):
+            for dir in dirs:
+                dir_path = os.path.join(root, dir)
+                if not os.listdir(dir_path):
+                    print(f'Removing empty directory: {dir_path}')
+                    os.rmdir(dir_path)
 
     # Download website
     try:
