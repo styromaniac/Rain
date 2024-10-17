@@ -10,8 +10,6 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 from pathlib import Path
 import argparse
-import time
-from email.utils import parsedate_to_datetime, formatdate
 
 def normalize_path(path):
     # Preserve the leading slash if it exists
@@ -73,20 +71,22 @@ class LinkParser(HTMLParser):
                 return attr[1]
 
 def download_website(source, dest, bank, melt):
-    # Download sn0.txt using conditional GET
-    if not download_sn0_txt(source, dest):
-        print('sn0.txt is up-to-date.')
+    # Download sn0.txt
+    checksum_url = urllib.parse.urljoin(source, 'sn0.txt')
+    try:
+        with urllib.request.urlopen(checksum_url) as response:
+            checksum_file = response.read()
+        with open(Path(dest) / 'sn0.txt', 'wb') as f:
+            f.write(checksum_file)
+    except Exception as e:
+        print(f'Error downloading {checksum_url}: {e}')
+        return
 
     # Check sha3-512sums of local copies against those in sn0.txt
     updated_files = {}
     downloaded_files = {}
 
-    sn0_path = Path(dest) / 'sn0.txt'
-    if not sn0_path.exists():
-        print('sn0.txt not found. Exiting.')
-        return
-
-    with open(sn0_path, 'r') as f:
+    with open(Path(dest) / 'sn0.txt', 'r') as f:
         checksums = f.readlines()
 
     valid_files = set()
@@ -101,24 +101,25 @@ def download_website(source, dest, bank, melt):
         if file_path == 'index.html':
             continue  # Skip index.html in checksum verification
 
-        dest_path = Path(dest) / file_path.lstrip('/')
-
-        if not dest_path.exists():
+        if not local_path.exists():
             print(f'Downloading {file_path}...')
-            download_file_conditional(urllib.parse.urljoin(source, file_path), dest_path, bank)
-            updated_files[dest_path] = sha3_512sum
+            download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
+            updated_files[local_path] = sha3_512sum
         else:
-            if dest_path.is_file():
-                local_checksum = get_sha3_512sum(dest_path)
-                if local_checksum == sha3_512sum:
-                    print(f'{file_path} already up-to-date.')
-                    downloaded_files[dest_path] = sha3_512sum
-                else:
-                    print(f'Downloading {file_path}...')
-                    if bank:
-                        backup_file(dest_path)
-                    download_file_conditional(urllib.parse.urljoin(source, file_path), dest_path, bank)
-                    updated_files[dest_path] = sha3_512sum
+            if os.path.isfile(local_path):
+                with open(local_path, 'rb') as f:
+                    content = f.read()
+                    hash_object = hashlib.sha3_512(content)
+                    hex_dig = hash_object.hexdigest()
+                    if hex_dig == sha3_512sum:
+                        print(f'{file_path} already up-to-date.')
+                        downloaded_files[local_path] = sha3_512sum
+                    else:
+                        print(f'Downloading {file_path}...')
+                        if bank:
+                            backup_file(local_path)
+                        download_url_to_file(urllib.parse.urljoin(source, file_path), source, dest, downloaded_files)
+                        updated_files[local_path] = sha3_512sum
             else:
                 print(f'Skipping directory: {file_path}')
 
@@ -147,11 +148,15 @@ def download_website(source, dest, bank, melt):
 
     # Download website
     try:
-        html = download_url_conditional(source, Path(dest) / 'index.html', bank)
+        html = download_url(source)
     except Exception as e:
         print(f'Error downloading {source}: {e}')
         return
 
+    # Always update index.html without backing up
+    dest_path = Path(dest) / 'index.html'
+    with open(dest_path, 'w', encoding='utf-8') as f:
+        f.write(html)
     print("index.html updated.")
 
     parser = LinkParser(source)
@@ -171,146 +176,100 @@ def download_website(source, dest, bank, melt):
 
             dest_path = Path(dest) / path.lstrip('/')
 
-            if dest_path.is_dir():
+            if os.path.isdir(dest_path):
                 print(f'Skipping directory: {path}')
                 continue
 
-            future = executor.submit(download_file_conditional, url, dest_path, bank)
+            if dest_path in updated_files:
+                if updated_files[dest_path] == get_sha3_512sum(dest_path):
+                    print(f'{path} already up-to-date.')
+                    continue
+
+            if dest_path in downloaded_files:
+                if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
+                    print(f'{path} already downloaded and verified.')
+                    continue
+                else:
+                    print(f'Re-downloading {path}...')
+                    if bank:
+                        backup_file(dest_path)
+            else:
+                print(f'Downloading {path}...')
+            
+            if bank:
+                backup_file(dest_path)
+
+            future = executor.submit(download_url_to_file, url, source, dest, downloaded_files)
             futures.append(future)
 
         for future in futures:
             try:
-                future.result()
+                result = future.result()
             except Exception as e:
-                print(f'Error downloading file: {e}')
+                print(f'Error downloading {future}: {e}')
 
     # Update links in index.html
     update_links_in_file(Path(dest) / 'index.html', urls, source)
 
-def download_sn0_txt(source, dest):
-    import urllib.error
-    sn0_path = Path(dest) / 'sn0.txt'
-    headers = {}
-    if sn0_path.exists():
-        last_modified_time = os.path.getmtime(sn0_path)
-        last_modified_str = formatdate(timeval=last_modified_time, usegmt=True)
-        headers['If-Modified-Since'] = last_modified_str
-
-    checksum_url = urllib.parse.urljoin(source, 'sn0.txt')
-    req = urllib.request.Request(checksum_url, headers=headers)
+def download_url_to_file(url, source, dest, downloaded_files):
     try:
-        with urllib.request.urlopen(req) as response:
-            if response.status == 304:
-                print('sn0.txt is up-to-date.')
-                return False
-            else:
-                checksum_file = response.read()
-                with open(sn0_path, 'wb') as f:
-                    f.write(checksum_file)
-                # Update the file's modification time to match the server's
-                if 'Last-Modified' in response.headers:
-                    server_time = parsedate_to_datetime(response.headers['Last-Modified'])
-                    os.utime(sn0_path, (server_time.timestamp(), server_time.timestamp()))
-                print('sn0.txt downloaded and updated.')
-                return True
-    except urllib.error.HTTPError as e:
-        if e.code == 304:
-            print('sn0.txt is up-to-date.')
-            return False
-        else:
-            print(f'Error downloading sn0.txt: {e}')
-            return False
+        with urllib.request.urlopen(url) as response:
+            content = response.read()
     except Exception as e:
-        print(f'Error downloading sn0.txt: {e}')
-        return False
+        print(f'Error downloading {url}: {e}')
+        return
 
-def download_file_conditional(url, dest_path, bank):
-    headers = {}
-    if dest_path.exists():
-        last_modified_time = os.path.getmtime(dest_path)
-        last_modified_str = formatdate(timeval=last_modified_time, usegmt=True)
-        headers['If-Modified-Since'] = last_modified_str
+    path = normalize_path(url.replace(source, ''))
 
-    req = urllib.request.Request(url, headers=headers)
-    try:
-        with urllib.request.urlopen(req) as response:
-            if response.status == 304:
-                print(f'{dest_path} is up-to-date.')
+    if path == '':
+        path = 'index.html'
+
+    dest_path = Path(dest) / path.lstrip('/')
+    dir_path = dest_path.parent
+
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    if path != 'index.html':
+        if dest_path in downloaded_files:
+            if downloaded_files[dest_path] == get_sha3_512sum(dest_path):
+                print(f'{path} already downloaded and verified.')
                 return
             else:
-                content = response.read()
-                dir_path = dest_path.parent
-                dir_path.mkdir(parents=True, exist_ok=True)
-                if bank and dest_path.exists():
-                    backup_file(dest_path)
-                with open(dest_path, 'wb') as f:
-                    f.write(content)
-                # Update the file's modification time to match the server's
-                if 'Last-Modified' in response.headers:
-                    server_time = parsedate_to_datetime(response.headers['Last-Modified'])
-                    os.utime(dest_path, (server_time.timestamp(), server_time.timestamp()))
-                print(f'{dest_path} downloaded and updated.')
-    except urllib.error.HTTPError as e:
-        if e.code == 304:
-            print(f'{dest_path} is up-to-date.')
-        else:
-            print(f'Error downloading {url}: {e}')
-    except Exception as e:
-        print(f'Error downloading {url}: {e}')
+                print(f'Re-downloading {path}...')
 
-def download_url_conditional(url, dest_path, bank):
-    headers = {}
-    if dest_path.exists():
-        last_modified_time = os.path.getmtime(dest_path)
-        last_modified_str = formatdate(timeval=last_modified_time, usegmt=True)
-        headers['If-Modified-Since'] = last_modified_str
-
-    req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req) as response:
-            if response.status == 304 and dest_path.exists():
-                print(f'{dest_path} is up-to-date.')
-                with open(dest_path, 'r', encoding='utf-8') as f:
-                    return f.read()
-            else:
-                content = response.read().decode('utf-8')
-                dir_path = dest_path.parent
-                dir_path.mkdir(parents=True, exist_ok=True)
-                if bank and dest_path.exists():
-                    backup_file(dest_path)
-                with open(dest_path, 'w', encoding='utf-8') as f:
-                    f.write(content)
-                # Update the file's modification time to match the server's
-                if 'Last-Modified' in response.headers:
-                    server_time = parsedate_to_datetime(response.headers['Last-Modified'])
-                    os.utime(dest_path, (server_time.timestamp(), server_time.timestamp()))
-                print(f'{dest_path} downloaded and updated.')
-                return content
-    except urllib.error.HTTPError as e:
-        if e.code == 304 and dest_path.exists():
-            print(f'{dest_path} is up-to-date.')
-            with open(dest_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        else:
-            print(f'Error downloading {url}: {e}')
-            raise
+        with open(dest_path, 'wb') as f:
+            f.write(content)
     except Exception as e:
-        print(f'Error downloading {url}: {e}')
-        raise
+        print(f'Error writing file {dest_path}: {e}')
+        return
 
-def backup_file(file_path):
+    if path != 'index.html':
+        downloaded_files[dest_path] = get_sha3_512sum(dest_path)
+
+def backup_file(file_path, content=None):
     if not os.path.isfile(file_path) or file_path.name == 'index.html':
         return  # Don't attempt to backup directories or index.html
     
-    path, ext = os.path.splitext(str(file_path))
+    path, ext = os.path.splitext(file_path)
     i = 1
-    backup_path = f'{path}.{i}{ext}.bak'
-    while os.path.exists(backup_path):
+    original_path = f'{path}{ext}.{i}.bak'
+    while os.path.exists(original_path):
         i += 1
-        backup_path = f'{path}.{i}{ext}.bak'
-    with open(file_path, 'rb') as f_in, open(backup_path, 'wb') as f_out:
-        f_out.write(f_in.read())
-    print(f'Backup created for {file_path} at {backup_path}')
+        original_path = f'{path}{ext}.{i}.bak'
+    if content is None:
+        with open(file_path, 'rb') as f:
+            content = f.read()
+    with open(original_path, 'wb') as backup_file:
+        backup_file.write(content)
+    print(f'Backup created for {file_path} at {original_path}')
+
+def download_url(url, binary=False):
+    with urllib.request.urlopen(url) as response:
+        if binary:
+            return response.read()
+        else:
+            return response.read().decode('utf-8')
 
 def update_links_in_file(file_path, links, base_url):
     print(f"Updating links in {file_path}")
@@ -318,25 +277,25 @@ def update_links_in_file(file_path, links, base_url):
         content = f.read()
 
     for link in links:
+        print(f"Processing link: {link}")
         if link:  # Only process non-empty links
             try:
-                relative_path = urllib.parse.urlparse(link).path
+                relative_path = os.path.relpath(urllib.parse.urljoin(base_url, link), base_url)
                 normalized_path = normalize_path(relative_path)
                 if not normalized_path.startswith(('/', '..')):
                     normalized_path = './' + normalized_path
                 # Use regex to replace the link, preserving quotes and other attributes
-                pattern = r'(?P<prefix>(?:href|src)=["\'])' + re.escape(link) + r'(?P<suffix>["\'])'
-                replacement = r'\g<prefix>' + normalized_path + r'\g<suffix>'
-                content, count = re.subn(pattern, replacement, content)
-                if count > 0:
-                    print(f"  Replaced {link} with {normalized_path}")
+                content = re.sub(r'(href|src)=["\']' + re.escape(link) + r'["\']', 
+                                 r'\1="' + normalized_path + '"', 
+                                 content)
+                print(f"  Replaced {link} with {normalized_path}")
             except ValueError as e:
                 print(f"  Error processing {link}: {e}")
                 # If relpath fails, use the link as is
                 normalized_path = normalize_path(link)
-                pattern = r'(?P<prefix>(?:href|src)=["\'])' + re.escape(link) + r'(?P<suffix>["\'])'
-                replacement = r'\g<prefix>' + normalized_path + r'\g<suffix>'
-                content = re.sub(pattern, replacement, content)
+                content = re.sub(r'(href|src)=["\']' + re.escape(link) + r'["\']', 
+                                 r'\1="' + normalized_path + '"', 
+                                 content)
                 print(f"  Used normalized link instead: {normalized_path}")
 
     with open(file_path, 'w', encoding='utf-8') as f:
